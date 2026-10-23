@@ -336,4 +336,21 @@ public class AgentController {
         return new Result<Void>().ok(null);
     }
 
+
+    @PutMapping("/{id}/clear-memory")
+    @Operation(summary = "Limpar a memória do agente inteligente (chamada pelo serviço do sistema)")
+    public Result<Void> clearAgentMemory(@PathVariable("id") String id) {
+        AgentUpdateDTO dto = new AgentUpdateDTO();
+        dto.setSummaryMemory("");
+        agentService.updateAgentById(id, dto);
+        return new Result<Void>().ok(null);
+    }
+
+    @GetMapping("/{id}/chat-history/system")
+    @Operation(summary = "Obter histórico recente de áudios (chamada pelo serviço do sistema)")
+    public Result<List<AgentChatHistoryUserVO>> getRecentlyFiftyByAgentIdSystem(@PathVariable("id") String id) {
+        List<AgentChatHistoryUserVO> data = agentChatHistoryService.getRecentlyFiftyByAgentId(id);
+        return new Result<List<AgentChatHistoryUserVO>>().ok(data);
+    }
+
 }

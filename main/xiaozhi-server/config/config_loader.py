@@ -11,7 +11,6 @@ from config.manage_api_client import (
     DeviceBindException,
 )
 
-
 def get_project_dir():
     """获取项目根目录"""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/"

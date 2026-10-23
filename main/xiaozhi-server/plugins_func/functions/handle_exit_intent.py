@@ -1,12 +1,12 @@
-from plugins_func.register import register_function, ToolType, ActionResponse, Action
-from config.logger import setup_logging
+import threading
+import asyncio
 from typing import TYPE_CHECKING
+from plugins_func.register import register_function, ToolType, ActionResponse, Action
+from config.settings import DEFAULT_AGENT_ID
+from config.manage_api_client import clear_agent_memory
 
 if TYPE_CHECKING:
     from core.connection import ConnectionHandler
-
-TAG = __name__
-logger = setup_logging()
 
 handle_exit_intent_function_desc = {
     "type": "function",
@@ -31,18 +31,37 @@ handle_exit_intent_function_desc = {
     "handle_exit_intent", handle_exit_intent_function_desc, ToolType.SYSTEM_CTL
 )
 def handle_exit_intent(conn: "ConnectionHandler", say_goodbye: str | None = None):
-    # 处理退出意图
     try:
         if say_goodbye is None:
-            say_goodbye = "再见，祝您生活愉快！"
-        if not conn.close_after_chat:
-            conn.close_after_chat = True
-        logger.bind(tag=TAG).info(f"退出意图已处理:{say_goodbye}")
+            say_goodbye = "Até logo!"
+
+        conn.close_after_chat = True
+        agent_id = getattr(conn, "agent_id", DEFAULT_AGENT_ID)
+
+        # Limpa a memória no Java em background via ManageApiClient
+        def clear_task():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(clear_agent_memory(agent_id))
+            finally:
+                loop.close()
+
+        threading.Thread(target=clear_task, daemon=True).start()
+
+        # Limpa o histórico em memória local para não regravar nada na desconexão
+        if hasattr(conn, "dialogue") and conn.dialogue:
+            conn.dialogue.dialogue.clear()
+
         return ActionResponse(
-            action=Action.RESPONSE, result="退出意图已处理", response=say_goodbye
+            action=Action.RESPONSE,
+            result="Intenção de encerramento processada",
+            response=say_goodbye,
         )
+
     except Exception as e:
-        logger.bind(tag=TAG).error(f"处理退出意图错误: {e}")
         return ActionResponse(
-            action=Action.NONE, result="退出意图处理失败", response=""
+            action=Action.NONE,
+            result=f"Falha ao processar intenção de encerramento: {e}",
+            response="",
         )
